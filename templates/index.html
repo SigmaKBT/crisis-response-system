@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrisisX // REPORT</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at center, #0d0505 0%, #000000 70%);
+  }
+  .form-box { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<div class="form-box">
+  <h2>🚨 REPORT CRISIS</h2>
+
+  <form method="POST">
+    <select name="type">
+      <option>Fire</option>
+      <option>Medical</option>
+      <option>Security</option>
+    </select>
+    <input name="location" placeholder="INCIDENT LOCATION" required autocomplete="off">
+    <button class="btn">▶ DISPATCH ALERT</button>
+  </form>
+</div>
+
+</body>
+</html>

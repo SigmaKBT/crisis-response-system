@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrisisX // LIVE MONITOR</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+<style>
+  /* ── ticker tape ── */
+  .ticker-wrap {
+    width: 100%;
+    overflow: hidden;
+    background: rgba(255,34,34,0.08);
+    border-top: 1px solid rgba(255,34,34,0.2);
+    border-bottom: 1px solid rgba(255,34,34,0.2);
+    padding: 6px 0;
+    margin-bottom: 28px;
+  }
+  .ticker {
+    display: inline-block;
+    white-space: nowrap;
+    animation: ticker 18s linear infinite;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #ff2222;
+  }
+  @keyframes ticker {
+    0%   { transform: translateX(100vw); }
+    100% { transform: translateX(-100%); }
+  }
+
+  /* ── stat strip ── */
+  .stat-strip {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .stat-box {
+    flex: 1;
+    padding: 16px 20px;
+    background: #0d1117;
+    border: 1px solid #1e2d3d;
+    border-top: 3px solid;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  }
+  .stat-box:nth-child(1) { border-top-color: #00e5ff; }
+  .stat-box:nth-child(2) { border-top-color: #ff9900; }
+  .stat-box:nth-child(3) { border-top-color: #00ff88; }
+  .stat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #546e7a;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    letter-spacing: 3px;
+    line-height: 1;
+  }
+  .stat-box:nth-child(1) .stat-val { color: #00e5ff; }
+  .stat-box:nth-child(2) .stat-val { color: #ff9900; }
+  .stat-box:nth-child(3) .stat-val { color: #00ff88; }
+
+  /* ── chart wrapper ── */
+  .chart-wrap {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    margin-bottom: 32px;
+  }
+  .chart-box {
+    background: #0d1117;
+    border: 1px solid #1e2d3d;
+    padding: 20px;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  }
+  .section-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: #546e7a;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #ff2222;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h2>⚡ CrisisX</h2>
+    <a href="/dashboard">◈ DASHBOARD</a>
+
+    {% if role == "admin" %}
+    <a href="/report">◈ REPORT</a>
+    {% endif %}
+
+    <a href="/logout">◈ LOGOUT</a>
+
+    <div class="sidebar-footer">
+      UNIT: {{ role|upper }}<br>
+      NET: 192.168.0.1<br>
+      UPTIME: 00:{{ range(10,99)|random }}:{{ range(10,59)|random }}
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- TICKER -->
+    <div class="ticker-wrap">
+      <span class="ticker">
+        ⚠ CRISIS RESPONSE NETWORK ACTIVE &nbsp;|&nbsp; ALL UNITS STANDBY &nbsp;|&nbsp;
+        PROTOCOL SIGMA-7 ENGAGED &nbsp;|&nbsp; LIVE INCIDENT TRACKING ENABLED &nbsp;|&nbsp;
+        SECURE CHANNEL ESTABLISHED &nbsp;|&nbsp; OPERATOR: {{ session.user|default("--")|upper }} &nbsp;|&nbsp;
+        ⚠ CRISIS RESPONSE NETWORK ACTIVE
+      </span>
+    </div>
+
+    <h2>🚨 LIVE MONITOR</h2>
+
+    <!-- STAT STRIP - always visible -->
+    <div class="stat-strip">
+      <div class="stat-box">
+        <div class="stat-label">Total Incidents</div>
+        <div class="stat-val">{{ total }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Pending</div>
+        <div class="stat-val">{{ pending }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Resolved</div>
+        <div class="stat-val">{{ resolved }}</div>
+      </div>
+    </div>
+
+    <!-- CHART (admin only) -->
+    {% if role == "admin" %}
+    <div class="chart-wrap">
+      <div class="chart-box">
+        <div class="section-label">INCIDENT DISTRIBUTION</div>
+        <canvas id="chart" width="220" height="220"></canvas>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- INCIDENT CARDS -->
+    <div class="section-label">ACTIVE INCIDENTS</div>
+    <div class="cards" id="cards">
+      {% for i in incidents %}
+      <div class="card {{ i[1]|lower }}" data-id="INC-{{ '%03d' % i[0] }}">
+        <h3>{{ i[1] }}</h3>
+        <p>📍 {{ i[2] }}</p>
+        <span class="status {{ i[3]|lower }}">{{ i[3] }}</span><br>
+        {% if i[3] != "Resolved" %}
+        <a href="/update/{{ i[0] }}" class="btn">▶ RESOLVE</a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+<script>
+const socket = io();
+
+// 🔊 SIREN — UNTOUCHED
+const siren = new Audio("/static/sounds/siren.mp3");
+
+// unlock audio
+document.body.addEventListener("click", () => {
+    siren.play().then(() => siren.pause());
+}, { once: true });
+
+// 🚨 NEW INCIDENT
+socket.on("new_incident", data => {
+    siren.loop = true;
+    siren.play();
+
+    const div = document.createElement("div");
+    div.className = "card new-incident " + data.type.toLowerCase();
+
+    const incNum = "INC-" + String(Math.floor(Math.random()*900)+100).padStart(3,"0");
+    div.setAttribute("data-id", incNum);
+
+    div.innerHTML = `
+        <h3>${data.type}</h3>
+        <p>📍 ${data.location}</p>
+        <span class="status pending">Pending</span>
+    `;
+
+    document.getElementById("cards").prepend(div);
+});
+
+// 🔄 UPDATE
+socket.on("update_incident", () => {
+    siren.pause();
+    siren.currentTime = 0;
+    location.reload();
+});
+
+// 📊 CHART (admin only)
+{% if role == "admin" %}
+new Chart(document.getElementById("chart"), {
+    type: "doughnut",
+    data: {
+        labels: ["Total","Resolved","Pending"],
+        datasets: [{
+            data: [{{ total }}, {{ resolved }}, {{ pending }}],
+            backgroundColor: ["rgba(0,229,255,0.7)", "rgba(0,255,136,0.7)", "rgba(255,153,0,0.7)"],
+            borderColor: ["#00e5ff", "#00ff88", "#ff9900"],
+            borderWidth: 2
+        }]
+    },
+    options: {
+        plugins: {
+            legend: {
+                labels: {
+                    color: "#c8d6e5",
+                    font: { family: "'Share Tech Mono'" },
+                    padding: 16
+                }
+            }
+        },
+        cutout: "65%"
+    }
+});
+{% endif %}
+</script>
+
+</body>
+</html>

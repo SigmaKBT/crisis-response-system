@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrisisX // AUTH</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at center, #0d0505 0%, #000000 70%);
+  }
+  .form-box { margin-top: 0; }
+  .boot-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: #2d4a5e;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+    text-align: left;
+    line-height: 1.8;
+  }
+  .boot-text span { color: #00ff88; }
+</style>
+</head>
+<body>
+
+<div class="form-box">
+  <h2>⚡ CrisisX</h2>
+
+  <div class="boot-text">
+    SYSTEM: CRISIS RESPONSE NETWORK<br>
+    STATUS: <span>ONLINE</span> // CLEARANCE REQUIRED<br>
+    PROTOCOL: ALPHA-7 ACTIVE
+  </div>
+
+  <form method="POST">
+    <input name="username" placeholder="OPERATOR ID" required autocomplete="off">
+    <input name="password" type="password" placeholder="ACCESS CODE" required>
+    <button class="btn">▶ AUTHENTICATE</button>
+  </form>
+
+  <p>DEMO CREDENTIALS<br>admin / admin123 &nbsp;·&nbsp; staff / staff123</p>
+</div>
+
+</body>
+</html>
