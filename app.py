@@ -6,15 +6,16 @@ import os
 app = Flask(__name__)
 app.secret_key = "secret"
 
-# 🔥 IMPORTANT: eventlet mode for Railway
-socketio = SocketIO(app, async_mode="eventlet")
+# ✅ NO EVENTLET (stable)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
-# DB CONNECTION
+
+# DATABASE CONNECTION
 def get_db():
-    return sqlite3.connect("database.db")
+    return sqlite3.connect("database.db", check_same_thread=False)
 
 
-# 🔥 AUTO CREATE DATABASE (IMPORTANT FOR DEPLOYMENT)
+# AUTO CREATE DATABASE (important for deployment)
 if not os.path.exists("database.db"):
     import database
 
@@ -80,7 +81,7 @@ def report():
         )
         db.commit()
 
-        # 🔥 REAL-TIME UPDATE
+        # REAL-TIME UPDATE
         socketio.emit("new_incident", {
             "type": type,
             "location": location,
@@ -102,7 +103,6 @@ def update(id):
     db.execute("UPDATE incidents SET status='Resolved' WHERE id=?", (id,))
     db.commit()
 
-    # 🔥 REAL-TIME UPDATE
     socketio.emit("update_incident", {"id": id})
 
     return redirect("/dashboard")
@@ -115,7 +115,7 @@ def logout():
     return redirect("/")
 
 
-# 🚀 MAIN (RAILWAY COMPATIBLE)
+# 🚀 LOCAL RUN
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     socketio.run(app, host="0.0.0.0", port=port)
