@@ -3,28 +3,34 @@ from flask_socketio import SocketIO
 import sqlite3
 import os
 
-port = int(os.environ.get("PORT", 5000))
-
-if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=port)
-
 app = Flask(__name__)
 app.secret_key = "secret"
 
-socketio = SocketIO(app)
+# 🔥 IMPORTANT: eventlet mode for Railway
+socketio = SocketIO(app, async_mode="eventlet")
 
+# DB CONNECTION
 def get_db():
     return sqlite3.connect("database.db")
 
+
+# 🔥 AUTO CREATE DATABASE (IMPORTANT FOR DEPLOYMENT)
+if not os.path.exists("database.db"):
+    import database
+
+
 # LOGIN
-@app.route("/", methods=["GET","POST"])
+@app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        u = request.form["username"]
-        p = request.form["password"]
+        username = request.form["username"]
+        password = request.form["password"]
 
         db = get_db()
-        user = db.execute("SELECT * FROM users WHERE username=? AND password=?", (u,p)).fetchone()
+        user = db.execute(
+            "SELECT * FROM users WHERE username=? AND password=?",
+            (username, password)
+        ).fetchone()
 
         if user:
             session["user"] = user[1]
@@ -47,46 +53,57 @@ def dashboard():
     resolved = db.execute("SELECT COUNT(*) FROM incidents WHERE status='Resolved'").fetchone()[0]
     pending = db.execute("SELECT COUNT(*) FROM incidents WHERE status='Pending'").fetchone()[0]
 
-    return render_template("dashboard.html",
-                           incidents=incidents,
-                           role=session["role"],
-                           total=total,
-                           resolved=resolved,
-                           pending=pending)
+    return render_template(
+        "dashboard.html",
+        incidents=incidents,
+        role=session["role"],
+        total=total,
+        resolved=resolved,
+        pending=pending
+    )
 
 
 # REPORT (ADMIN ONLY)
-@app.route("/report", methods=["GET","POST"])
+@app.route("/report", methods=["GET", "POST"])
 def report():
     if "user" not in session or session["role"] != "admin":
         return redirect("/")
 
     if request.method == "POST":
-        t = request.form["type"]
-        l = request.form["location"]
+        type = request.form["type"]
+        location = request.form["location"]
 
         db = get_db()
-        db.execute("INSERT INTO incidents (type,location,status) VALUES (?,?,?)",(t,l,"Pending"))
+        db.execute(
+            "INSERT INTO incidents (type, location, status) VALUES (?, ?, ?)",
+            (type, location, "Pending")
+        )
         db.commit()
 
-        socketio.emit("new_incident", {"type":t,"location":l})
+        # 🔥 REAL-TIME UPDATE
+        socketio.emit("new_incident", {
+            "type": type,
+            "location": location,
+            "status": "Pending"
+        })
 
         return redirect("/dashboard")
 
     return render_template("index.html")
 
 
-# UPDATE
+# UPDATE INCIDENT
 @app.route("/update/<int:id>")
 def update(id):
     if "user" not in session:
         return redirect("/")
 
     db = get_db()
-    db.execute("UPDATE incidents SET status='Resolved' WHERE id=?",(id,))
+    db.execute("UPDATE incidents SET status='Resolved' WHERE id=?", (id,))
     db.commit()
 
-    socketio.emit("update_incident", {"id":id})
+    # 🔥 REAL-TIME UPDATE
+    socketio.emit("update_incident", {"id": id})
 
     return redirect("/dashboard")
 
@@ -98,5 +115,7 @@ def logout():
     return redirect("/")
 
 
+# 🚀 MAIN (RAILWAY COMPATIBLE)
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    port = int(os.environ.get("PORT", 8080))
+    socketio.run(app, host="0.0.0.0", port=port)
